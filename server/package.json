@@ -1,13 +1,16 @@
+
 {
   "name": "backend",
   "version": "1.0.0",
-  "main": "index.js",
+  "private": true,
+  "main": "dist/index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
     "dev": "tsx watch src/index.ts",
-    "start": "node server.js",
-    "worker": "tsx watch src/worker/index.ts",
-    "build": "tsc"
+    "start": "node dist/index.js",
+    "worker:dev": "tsx watch src/worker/index.ts",
+    "worker": "node dist/worker/index.js",
+    "build": "tsc",
+    "test": "echo \"No tests configured yet\""
   },
   "keywords": [],
   "author": "",
