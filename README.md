@@ -1,94 +1,129 @@
-# PulseCheck
+# PulseCheck — Website Uptime Monitoring
 
-PulseCheck is a full-stack website monitoring application that periodically checks website availability, tracks response times, records check history, and notifies users when a monitored website experiences an outage or recovers.
+**PulseCheck** is a full-stack website uptime monitoring application that periodically checks website availability, tracks response times, maintains historical check records, and notifies users when monitored websites experience outages or recover.
 
-The application provides a dashboard for managing monitors, reviewing monitoring statistics, and investigating incidents.
+It provides a centralized dashboard to manage website monitors, review uptime statistics, visualize response-time trends, and investigate incidents.
+
+**Live Demo:** https://pulse-check-drab.vercel.app/  
+**GitHub Repository:** https://github.com/Charan-dev247/PulseCheck
 
 ## Features
 
-- User authentication with JWT and password hashing
-- Create, view, update, pause, resume, and delete website monitors
-- Configurable check intervals and request timeouts
-- Background monitoring jobs using BullMQ and Redis
-- Website availability and response-time tracking
-- Dashboard with monitoring statistics and charts
-- Historical response-time charts and recent check results
-- Uptime statistics for 24-hour, 7-day, and 30-day periods
-- Incident tracking with outage and recovery notifications through email
-- Monitor-specific details and automatic data refresh
+- **Authentication:** JWT-based authentication with password hashing.
+- **Monitor Management:** Create, view, update, pause, resume, and delete website monitors.
+- **Configurable Monitoring:** Configure check intervals, request timeouts, expected HTTP status codes, and failure thresholds.
+- **Background Job Processing:** Schedule recurring monitoring jobs using BullMQ and Redis.
+- **Availability Checks:** Detect website failures and unexpected HTTP responses.
+- **Response-Time Tracking:** Record response times and maintain historical check results.
+- **Monitoring Dashboard:** View monitor statuses, monitoring statistics, and response-time visualizations.
+- **Uptime Analytics:** Review check-based success rates over 24-hour, 7-day, and 30-day periods.
+- **Incident Management:** Record outages and track their resolution.
+- **Email Notifications:** Send outage and recovery notifications.
+- **Monitor Details:** Inspect individual monitors, historical results, and incident information.
+- **Automatic Refresh:** Keep monitoring information updated in the dashboard.
 
 ## Technology Stack
 
-**Frontend**
+### Frontend
 - React
 - TypeScript
 - Vite
 - Recharts
 - Axios
 
-**Backend**
+### Backend
 - Node.js
-- Express
+- Express.js
 - TypeScript
-- JWT authentication
+- JSON Web Tokens (JWT)
 - bcrypt
 
-**Database and Background Processing**
+### Database and Background Processing
 - PostgreSQL
 - Redis
 - BullMQ
 
-**Development and Infrastructure**
+### Development and Infrastructure
 - Docker Compose
 - Git and GitHub
+- Vercel — frontend deployment
+- Render — backend API, PostgreSQL, and Redis hosting
 
 ## Architecture
 
-PulseCheck separates the frontend, API server, database, and background monitoring worker.
+PulseCheck uses a frontend–backend architecture with PostgreSQL for persistent storage and Redis with BullMQ for scheduled monitoring jobs.
 
-1. The React frontend communicates with the backend through REST APIs.
-2. The Express server handles authentication, monitor management, and analytics requests.
-3. PostgreSQL stores user accounts, monitor configurations, check results, and incident records.
-4. Redis and BullMQ manage scheduled monitoring jobs.
-5. A background worker checks configured URLs, records results, updates monitor status, and handles outage and recovery notifications.
+1. **Frontend:** The React application communicates with the backend through REST APIs.
+2. **API server:** Express handles authentication, monitor management, and analytics requests.
+3. **Database:** PostgreSQL stores user accounts, monitor configurations, check results, and incident records.
+4. **Job queue:** Redis and BullMQ manage recurring monitoring jobs.
+5. **Monitoring worker:** The worker processes scheduled jobs, checks configured URLs, records results, updates monitor statuses, and handles outage and recovery notifications.
+
+For the current deployment, the monitoring worker runs in the same Node.js process as the API, avoiding the need for a separate paid background-worker service.
+
+### Architecture Flow
+
+```text
+React + Vite Frontend
+        |
+        | REST API requests
+        v
+Express + TypeScript API
+        |
+        +-----------> PostgreSQL
+        |              |
+        |              +-- Users
+        |              +-- Monitors
+        |              +-- Check Results
+        |              +-- Incidents
+        |
+        +-----------> Redis + BullMQ
+                           |
+                           v
+                    Monitoring Worker
+                           |
+                           v
+                    Website HTTP Checks
+                           |
+                           v
+                  Results and Status Updates
+```
 
 ## Project Structure
 
 ```text
 PulseCheck/
-├── client/                 # React frontend
-├── server/                 # Express backend and worker
+├── client/                  # React frontend
+├── server/                  # Express backend and worker
 │   └── src/
-│       ├── db/              # Database connection and schema
-│       ├── middleware/      # Authentication middleware
-│       ├── routes/          # API routes
-│       ├── worker/          # Background monitoring worker
-│       ├── emailService.ts  # Email notifications
-│       ├── queue.ts         # BullMQ configuration
-│       └── index.ts         # Backend entry point
-├── docker-compose.yml       # PostgreSQL and Redis services
+│       ├── db/               # Database connection and schema
+│       ├── middleware/       # Authentication middleware
+│       ├── routes/           # API routes
+│       ├── worker/           # Background monitoring worker
+│       ├── emailService.ts   # Email notifications
+│       ├── queue.ts          # BullMQ configuration
+│       └── index.ts          # API entry point
+├── docker-compose.yml        # Local PostgreSQL and Redis
 ├── .gitignore
 └── README.md
 ```
 
-## Prerequisites
+## Getting Started
 
-Install the following before running the application:
+### Prerequisites
+
+Install the following:
 
 - Node.js and npm
 - Docker Desktop
 - Git
 
-## Getting Started
-
 ### 1. Clone the repository
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/PulseCheck.git
+git clone https://github.com/Charan-dev247/PulseCheck.git
 cd PulseCheck
 ```
-
-Replace `YOUR_USERNAME` with your GitHub username.
 
 ### 2. Start PostgreSQL and Redis
 
@@ -98,71 +133,122 @@ From the project root, run:
 docker compose up -d
 ```
 
-Check the container status:
+Verify that the containers are running:
 
 ```bash
 docker compose ps
 ```
 
-The provided Docker Compose configuration starts PostgreSQL and Redis for local development.
+The Docker Compose configuration provides PostgreSQL and Redis for local development.
 
 ### 3. Configure environment variables
 
-Create the required environment files for the frontend and backend using the variables expected by each application.
+Create the environment files required by the application:
 
-- `client/.env` — frontend configuration, including the API base URL.
-- `server/.env` — backend configuration, including database connectivity, authentication secrets, and email settings where required.
+**`server/.env`**
 
-Use local development values for local execution. Configure production secrets separately when deploying.
+Configure the backend's required environment variables, including:
 
-Never commit `.env` files, passwords, API keys, SMTP credentials, or JWT secrets to GitHub.
+- `DATABASE_URL` — PostgreSQL connection string.
+- `REDIS_URL` — Redis connection string.
+- JWT authentication secret.
+- Email configuration, if required by the notification service.
+
+**`client/.env`**
+
+Configure the frontend API base URL using the environment variable expected by the client. For the current Vite deployment, this is `VITE_API_URL`.
+
+For local development, configure it to point to the local backend API, including the appropriate API path.
+
+Use the variable names and formats expected by the source code. Never commit `.env` files, passwords, database URLs, email credentials, or authentication secrets to GitHub.
 
 ### 4. Install dependencies
 
-Open a terminal in the frontend directory:
-
-```bash
-cd client
-npm install
-```
-
-Open another terminal in the backend directory:
+Install backend dependencies:
 
 ```bash
 cd server
 npm install
 ```
 
-### 5. Run the application
+Install frontend dependencies in a separate terminal:
 
-Start the backend and frontend using the development scripts defined in their respective `package.json` files.
+```bash
+cd client
+npm install
+```
 
-Start the background monitoring worker using the worker script configured by the backend project.
+### 5. Start the application
+
+Start PostgreSQL and Redis first, and ensure the environment variables are configured.
+
+In the backend terminal:
+
+```bash
+cd server
+npm run dev
+```
+
+In another terminal, start the frontend using the development script defined in `client/package.json` (typically `npm run dev`):
+
+```bash
+cd client
+npm run dev
+```
 
 The local development endpoints are:
 
-- Frontend: `http://localhost:5173`
-- Backend API: `http://localhost:4000`
+| Service | URL |
+|---|---|
+| Frontend | http://localhost:5173 |
+| Backend API | http://localhost:4000 |
+| Backend health check | http://localhost:4000/health |
 
-Ensure PostgreSQL and Redis are running and the environment variables are configured before starting the application.
+The backend's health endpoint checks database connectivity.
+
+The monitoring worker is started by the backend entry point, so a separate worker process is not required for this configuration.
 
 ## Monitoring and Analytics
 
-PulseCheck records the results of website checks and presents them through the dashboard and monitor details pages.
+PulseCheck periodically checks configured websites and stores the results in PostgreSQL.
 
-The application includes response-time history, recent check results, incident history, and success-rate statistics for different reporting periods.
+For each completed check, the application can record information such as:
 
-Uptime statistics are calculated from recorded check results. They represent the success rate of recorded checks and are not a measurement of continuous elapsed-time availability.
+- Check success or failure
+- HTTP status code
+- Response time
+- Error details
+- Check timestamp
+
+The dashboard and monitor details pages use these records to display monitoring status, response-time history, recent checks, uptime statistics, and incident history.
+
+**Uptime calculation:** The reported uptime statistics represent the success rate of recorded checks over the selected reporting period. They are not a direct measurement of continuous elapsed-time availability.
+
+## Deployment
+
+The current production deployment uses:
+
+- **Frontend:** Vercel
+- **Backend API and monitoring worker:** Render Web Service
+- **Database:** Render PostgreSQL
+- **Job queue:** Render Redis / Key Value
+
+Production environment variables are configured through the respective hosting dashboards rather than committed to the repository.
+
+Visit the live application:
+
+**https://pulse-check-drab.vercel.app/**
 
 ## Future Improvements
 
-Potential extensions include:
+Potential enhancements include:
 
-- Public status pages
-- More notification channels
-- Advanced monitoring analytics
-- Containerized application deployment
-- Cloud hosting and production monitoring
+- Public status pages for monitored services
+- Additional notification channels
+- Advanced monitoring analytics and anomaly detection
+- More comprehensive automated tests
+- Improved security and operational observability
+- Expanded reporting and export functionality
 
 ## License
 
