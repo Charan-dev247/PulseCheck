@@ -6,6 +6,7 @@ import { pool } from "./db/pool";
 import monitorRoutes from "./routes/monitors";
 import authRoutes from "./routes/auth";
 import analyticsRoutes from "./routes/analytics";
+import "./worker";
 
 const app = express();
 const PORT = Number(process.env.PORT) || 4000;
