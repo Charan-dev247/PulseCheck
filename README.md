@@ -1,11 +1,14 @@
 # PulseCheck — Website Uptime Monitoring
 
-PulseCheck is a full-stack website uptime monitoring application that periodically checks website availability, tracks response times, maintains historical check records, and notifies users when monitored websites experience outages or recover.
+[![PulseCheck CI](https://github.com/Charan-dev247/PulseCheck/actions/workflows/ci.yml/badge.svg)](https://github.com/Charan-dev247/PulseCheck/actions/workflows/ci.yml)
+
+PulseCheck is a full-stack website uptime monitoring application that periodically checks website availability, tracks response times, stores historical check records, and notifies users when monitored websites experience outages or recover.
 
 It provides a centralized dashboard to manage website monitors, review uptime statistics, visualize response-time trends, and investigate incidents.
 
-**Live Demo:** [https://pulse-check-drab.vercel.app/](https://pulse-check-drab.vercel.app/)  
-**GitHub Repository:** [https://github.com/Charan-dev247/PulseCheck](https://github.com/Charan-dev247/PulseCheck)
+**Live Demo:** [PulseCheck](https://d294lqn609ipv.cloudfront.net)
+
+**GitHub Repository:** [Charan-dev247/PulseCheck](https://github.com/Charan-dev247/PulseCheck)
 
 ## Features
 
@@ -46,8 +49,54 @@ It provides a centralized dashboard to manage website monitors, review uptime st
 ### Development and Infrastructure
 - Docker Compose
 - Git and GitHub
-- Vercel — frontend deployment
-- Render — backend API, PostgreSQL, and Redis hosting
+- GitHub Actions
+- AWS S3 and CloudFront — frontend hosting and delivery
+- Render — backend API, PostgreSQL, and Redis/Key Value hosting
+
+## Architecture
+
+PulseCheck uses a frontend–backend architecture with PostgreSQL for persistent storage and Redis with BullMQ for scheduled monitoring jobs.
+
+1. **Frontend:** The React application communicates with the backend through REST APIs.
+2. **API Server:** Express handles authentication, monitor management, and analytics requests.
+3. **Database:** PostgreSQL stores user accounts, monitor configurations, check results, and incident records.
+4. **Job Queue:** Redis and BullMQ manage recurring monitoring jobs.
+5. **Monitoring Worker:** Processes scheduled jobs, checks configured URLs, records results, updates monitor statuses, and handles outage and recovery notifications.
+
+In the current deployment, the monitoring worker runs in the same Node.js process as the API, avoiding the need for a separate worker service.
+
+### Architecture Flow
+
+```text
+User
+ |
+ v
+React + Vite Frontend
+(AWS S3 + CloudFront)
+ |
+ | HTTPS / REST API requests
+ v
+Express + TypeScript API
+(Render)
+ |
+ +--------------------> PostgreSQL
+ |                       |
+ |                       +-- Users
+ |                       +-- Monitors
+ |                       +-- Check Results
+ |                       +-- Incidents
+ |
+ +--------------------> Redis + BullMQ
+                          |
+                          v
+                   Monitoring Worker
+                          |
+                          v
+                   Website HTTP Checks
+                          |
+                          v
+                 Results and Status Updates
+```
 
 ## Automated Testing and CI
 
@@ -81,44 +130,12 @@ npm run build
 npm test
 ```
 
-## Architecture
+The frontend production build can be checked separately:
 
-PulseCheck uses a frontend–backend architecture with PostgreSQL for persistent storage and Redis with BullMQ for scheduled monitoring jobs.
-
-1. **Frontend:** The React application communicates with the backend through REST APIs.
-2. **API Server:** Express handles authentication, monitor management, and analytics requests.
-3. **Database:** PostgreSQL stores user accounts, monitor configurations, check results, and incident records.
-4. **Job Queue:** Redis and BullMQ manage recurring monitoring jobs.
-5. **Monitoring Worker:** The worker processes scheduled jobs, checks configured URLs, records results, updates monitor statuses, and handles outage and recovery notifications.
-
-For the current deployment, the monitoring worker runs in the same Node.js process as the API, avoiding the need for a separate paid background-worker service.
-
-### Architecture Flow
-
-```text
-React + Vite Frontend
-        |
-        | REST API requests
-        v
-Express + TypeScript API
-        |
-        +-----------> PostgreSQL
-        |                  |
-        |                  +-- Users
-        |                  +-- Monitors
-        |                  +-- Check Results
-        |                  +-- Incidents
-        |
-        +-----------> Redis + BullMQ
-                            |
-                            v
-                     Monitoring Worker
-                            |
-                            v
-                     Website HTTP Checks
-                            |
-                            v
-                  Results and Status Updates
+```bash
+cd client
+npm ci
+npm run build
 ```
 
 ## Project Structure
@@ -174,7 +191,7 @@ Verify that the containers are running:
 docker compose ps
 ```
 
-The Docker Compose configuration provides PostgreSQL and Redis for local development.
+Docker Compose provides PostgreSQL and Redis for local development.
 
 ### 3. Configure Environment Variables
 
@@ -191,30 +208,36 @@ Configure the backend's required environment variables, including:
 
 **`client/.env`**
 
-Configure the frontend API base URL using the environment variable expected by the client. For the current Vite deployment, this is `VITE_API_URL`.
+Configure the frontend API base URL using `VITE_API_URL`.
 
-For local development, configure it to point to the local backend API, including the appropriate API path. For example, if the API runs on port 4000 and uses the `/api` prefix, the value would be:
+For local development, point it to the local backend API, including the appropriate API path. For example, if the backend runs on port `4000` and uses the `/api` prefix:
 
 ```env
 VITE_API_URL=http://localhost:4000/api
 ```
 
-Use the variable names and formats expected by the source code. Never commit `.env` files, passwords, database URLs, email credentials, or authentication secrets to GitHub.
+Use the exact variable names and formats expected by the source code. Never commit `.env` files, passwords, database URLs, email credentials, or authentication secrets to GitHub.
 
 ### 4. Install Dependencies
+
+Install root dependencies if required by the repository's scripts and test setup:
+
+```bash
+npm ci
+```
 
 Install backend dependencies:
 
 ```bash
 cd server
-npm install
+npm ci
 ```
 
-In a separate terminal, install frontend dependencies:
+Install frontend dependencies in a separate terminal:
 
 ```bash
 cd client
-npm install
+npm ci
 ```
 
 ### 5. Start the Application
@@ -228,30 +251,28 @@ cd server
 npm run dev
 ```
 
-In another terminal, start the frontend using the development script defined in `client/package.json` (typically `npm run dev`):
+In another terminal:
 
 ```bash
 cd client
 npm run dev
 ```
 
-The local development endpoints are:
+The frontend and backend ports depend on the project configuration. With the example configuration above, the local endpoints are:
 
 | Service | URL |
 |---|---|
-| Frontend | [http://localhost:5173](http://localhost:5173) |
-| Backend API | [http://localhost:4000](http://localhost:4000) |
-| Backend health check | [http://localhost:4000/health](http://localhost:4000/health) |
+| Frontend | `http://localhost:5173` |
+| Backend API | `http://localhost:4000` |
+| Backend health check | `http://localhost:4000/health` |
 
-The backend health endpoint checks database connectivity.
-
-The monitoring worker is started by the backend entry point, so a separate worker process is not required for this configuration.
+The backend health endpoint checks database connectivity. The monitoring worker is started by the backend entry point, so a separate worker process is not required for this configuration.
 
 ## Monitoring and Analytics
 
 PulseCheck periodically checks configured websites and stores the results in PostgreSQL.
 
-For each completed check, the application can record information such as:
+For each completed check, the application can record:
 
 - Check success or failure
 - HTTP status code
@@ -261,20 +282,20 @@ For each completed check, the application can record information such as:
 
 The dashboard and monitor details pages use these records to display monitoring status, response-time history, recent checks, uptime statistics, and incident history.
 
-**Uptime calculation:** The reported uptime statistics represent the success rate of recorded checks over the selected reporting period. They are not a direct measurement of continuous elapsed-time availability.
+**Uptime calculation:** Reported uptime statistics represent the success rate of recorded checks over the selected reporting period. They are not a direct measurement of continuous elapsed-time availability.
 
 ## Deployment
 
 The current production deployment uses:
 
-- **Frontend:** Vercel
+- **Frontend:** AWS S3 and CloudFront
 - **Backend API and monitoring worker:** Render Web Service
 - **Database:** Render PostgreSQL
 - **Job queue:** Render Redis / Key Value
 
 Production environment variables are configured through the respective hosting dashboards rather than committed to the repository.
 
-Visit the [live application](https://pulse-check-drab.vercel.app/).
+Visit the [live PulseCheck application](https://d294lqn609ipv.cloudfront.net).
 
 ## Future Improvements
 
@@ -286,6 +307,7 @@ Potential enhancements include:
 - More comprehensive automated tests
 - Improved security and operational observability
 - Expanded reporting and export functionality
+- Automated frontend deployments through GitHub Actions
 
 ## License
 
