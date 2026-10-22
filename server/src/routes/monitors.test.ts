@@ -30,9 +30,10 @@ vi.mock("../middleware/auth", () => ({
 }));
 
 import { pool } from "../db/pool";
+import { scheduleMonitor } from "../queue";
 import app from "../app";
 
-describe("Monitor API validation", () => {
+describe("Monitor API validation and creation", () => {
   afterEach(() => {
     vi.clearAllMocks();
   });
@@ -119,5 +120,92 @@ describe("Monitor API validation", () => {
     expect(response.body).toEqual({
       error: "Unable to fetch monitors",
     });
+  });
+
+  it("creates a monitor successfully", async () => {
+    vi.mocked(pool.query).mockResolvedValueOnce({
+      rows: [
+        {
+          id: 10,
+          name: "Example",
+          url: "https://example.com/",
+          interval_seconds: 300,
+        },
+      ],
+    } as any);
+
+    const response = await request(app)
+      .post("/api/monitors")
+      .set("Authorization", "Bearer test-token")
+      .send({
+        name: " Example ",
+        url: "https://example.com",
+      });
+
+    expect(response.status).toBe(201);
+    expect(response.body.message).toBe("Monitor created successfully");
+    expect(response.body.monitor.id).toBe(10);
+    expect(pool.query).toHaveBeenCalledOnce();
+    expect(pool.query).toHaveBeenCalledWith(
+      expect.stringContaining("INSERT INTO monitors"),
+      [1, "Example", "https://example.com/"]
+    );
+    expect(scheduleMonitor).toHaveBeenCalledWith(10, 300);
+  });
+
+  it("returns 500 when database insertion fails", async () => {
+    vi.mocked(pool.query).mockRejectedValueOnce(
+      new Error("Database unavailable")
+    );
+
+    const response = await request(app)
+      .post("/api/monitors")
+      .set("Authorization", "Bearer test-token")
+      .send({
+        name: "Example",
+        url: "https://example.com",
+      });
+
+    expect(response.status).toBe(500);
+    expect(response.body).toEqual({
+      error: "Unable to create monitor",
+    });
+  });
+
+  it("rolls back monitor creation when scheduling fails", async () => {
+    vi.mocked(pool.query)
+      .mockResolvedValueOnce({
+        rows: [
+          {
+            id: 10,
+            name: "Example",
+            url: "https://example.com/",
+            interval_seconds: 300,
+          },
+        ],
+      } as any)
+      .mockResolvedValueOnce({ rows: [] } as any);
+
+    vi.mocked(scheduleMonitor).mockRejectedValueOnce(
+      new Error("Redis unavailable")
+    );
+
+    const response = await request(app)
+      .post("/api/monitors")
+      .set("Authorization", "Bearer test-token")
+      .send({
+        name: "Example",
+        url: "https://example.com",
+      });
+
+    expect(response.status).toBe(503);
+    expect(response.body).toEqual({
+      error: "Unable to schedule monitor. Please try again.",
+    });
+    expect(pool.query).toHaveBeenCalledTimes(2);
+    expect(pool.query).toHaveBeenLastCalledWith(
+      "DELETE FROM monitors WHERE id = $1 AND user_id = $2",
+      [10, 1]
+    );
   });
 });
