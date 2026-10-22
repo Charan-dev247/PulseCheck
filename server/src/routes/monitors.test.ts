@@ -73,4 +73,51 @@ describe("Monitor API validation", () => {
     });
     expect(pool.query).not.toHaveBeenCalled();
   });
+
+  it("rejects an invalid monitor ID", async () => {
+    const response = await request(app)
+      .get("/api/monitors/abc")
+      .set("Authorization", "Bearer test-token");
+
+    expect(response.status).toBe(400);
+    expect(response.body).toEqual({
+      error: "Invalid monitor ID",
+    });
+    expect(pool.query).not.toHaveBeenCalled();
+  });
+
+  it("returns 404 when the monitor does not exist", async () => {
+    vi.mocked(pool.query).mockResolvedValueOnce({
+      rows: [],
+    } as any);
+
+    const response = await request(app)
+      .get("/api/monitors/123")
+      .set("Authorization", "Bearer test-token");
+
+    expect(response.status).toBe(404);
+    expect(response.body).toEqual({
+      error: "Monitor not found",
+    });
+    expect(pool.query).toHaveBeenCalledOnce();
+    expect(pool.query).toHaveBeenCalledWith(
+      expect.stringContaining("WHERE id = $1 AND user_id = $2"),
+      [123, 1]
+    );
+  });
+
+  it("returns 500 when fetching monitors fails", async () => {
+    vi.mocked(pool.query).mockRejectedValueOnce(
+      new Error("Database unavailable")
+    );
+
+    const response = await request(app)
+      .get("/api/monitors")
+      .set("Authorization", "Bearer test-token");
+
+    expect(response.status).toBe(500);
+    expect(response.body).toEqual({
+      error: "Unable to fetch monitors",
+    });
+  });
 });
