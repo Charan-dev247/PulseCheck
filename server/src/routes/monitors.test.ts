@@ -30,10 +30,10 @@ vi.mock("../middleware/auth", () => ({
 }));
 
 import { pool } from "../db/pool";
-import { scheduleMonitor } from "../queue";
+import { scheduleMonitor, unscheduleMonitor } from "../queue";
 import app from "../app";
 
-describe("Monitor API validation and creation", () => {
+describe("Monitor API validation, creation, update and deletion", () => {
   afterEach(() => {
     vi.clearAllMocks();
   });
@@ -205,6 +205,61 @@ describe("Monitor API validation and creation", () => {
     expect(pool.query).toHaveBeenCalledTimes(2);
     expect(pool.query).toHaveBeenLastCalledWith(
       "DELETE FROM monitors WHERE id = $1 AND user_id = $2",
+      [10, 1]
+    );
+  });
+
+  it("rejects invalid monitor update settings", async () => {
+    const response = await request(app)
+      .patch("/api/monitors/10")
+      .set("Authorization", "Bearer test-token")
+      .send({ interval_seconds: 10 });
+
+    expect(response.status).toBe(400);
+    expect(response.body).toEqual({
+      error: "Invalid monitor settings",
+    });
+    expect(pool.query).not.toHaveBeenCalled();
+  });
+
+  it("returns 404 when updating a nonexistent monitor", async () => {
+    vi.mocked(pool.query).mockResolvedValueOnce({
+      rows: [],
+    } as any);
+
+    const response = await request(app)
+      .patch("/api/monitors/10")
+      .set("Authorization", "Bearer test-token")
+      .send({ name: "Updated monitor" });
+
+    expect(response.status).toBe(404);
+    expect(response.body).toEqual({
+      error: "Monitor not found",
+    });
+  });
+
+  it("deletes a monitor successfully", async () => {
+    vi.mocked(pool.query)
+      .mockResolvedValueOnce({
+        rows: [{ id: 10 }],
+      } as any)
+      .mockResolvedValueOnce({
+        rows: [{ id: 10 }],
+      } as any);
+
+    const response = await request(app)
+      .delete("/api/monitors/10")
+      .set("Authorization", "Bearer test-token");
+
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({
+      message: "Monitor deleted successfully",
+      id: 10,
+    });
+    expect(unscheduleMonitor).toHaveBeenCalledWith(10);
+    expect(pool.query).toHaveBeenCalledTimes(2);
+    expect(pool.query).toHaveBeenLastCalledWith(
+      expect.stringContaining("DELETE FROM monitors"),
       [10, 1]
     );
   });
