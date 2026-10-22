@@ -10,7 +10,7 @@
     "worker:dev": "tsx watch src/worker/index.ts",
     "worker": "node dist/worker/index.js",
     "build": "tsc",
-    "test":  "vitest run --exclude dist/**"
+    "test": "vitest run"
   },
   "keywords": [],
   "author": "",
